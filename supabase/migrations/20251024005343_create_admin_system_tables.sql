@@ -62,7 +62,7 @@
 
 -- Create admin_users table
 CREATE TABLE IF NOT EXISTS users (
-  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id uuid PRIMARY KEY,
   email text UNIQUE NOT NULL,
   username text NOT NULL,
   role text NOT NULL,
