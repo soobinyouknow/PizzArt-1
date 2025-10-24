@@ -12,6 +12,32 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export interface Database {
   public: {
     Tables: {
+      users: {
+        Row: {
+          id: string;
+          email: string;
+          username: string;
+          role: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          username: string;
+          role: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          username?: string;
+          role: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       admin_users: {
         Row: {
           id: string;
