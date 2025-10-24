@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
 
 const CartPage = () => {
   const { state, dispatch } = useApp();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const updateQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
@@ -21,13 +23,64 @@ const CartPage = () => {
   const totalPrice = state.cart.reduce((total, item) => total + (item.pizza.price * item.quantity), 0);
   const totalItems = state.cart.reduce((total, item) => total + item.quantity, 0);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (state.cart.length === 0) return;
-    
-    // Simulate checkout process
-    dispatch({ type: 'ADD_POINTS', payload: Math.floor(totalPrice / 1000) }); // 1 point per Rp 1000
-    alert(`🎉 Pesanan berhasil! Total: Rp ${totalPrice.toLocaleString()}\n+${Math.floor(totalPrice / 1000)} poin telah ditambahkan ke akun kamu!`);
-    dispatch({ type: 'CLEAR_CART' });
+
+    setIsProcessing(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        alert('Silakan login terlebih dahulu untuk melakukan checkout');
+        setIsProcessing(false);
+        return;
+      }
+
+      const finalTotal = Math.floor(totalPrice * 1.1);
+
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert([
+          {
+            user_id: user.id,
+            user_email: user.email || state.user?.email || 'guest@pizza.com',
+            user_name: state.user?.username || 'Guest',
+            total_price: finalTotal,
+            status: 'pending',
+          },
+        ])
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      const orderItems = state.cart.map((item) => ({
+        order_id: order.id,
+        pizza_name: item.pizza.name,
+        size: item.pizza.size,
+        crust: item.pizza.crust,
+        sauce: item.pizza.sauce,
+        toppings: item.pizza.toppings,
+        quantity: item.quantity,
+        price: item.pizza.price * item.quantity,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      dispatch({ type: 'ADD_POINTS', payload: Math.floor(totalPrice / 1000) });
+      alert(`🎉 Pesanan berhasil dibuat!\nID Pesanan: ${order.id.slice(0, 8)}\nTotal: Rp ${finalTotal.toLocaleString()}\n+${Math.floor(totalPrice / 1000)} poin telah ditambahkan ke akun kamu!`);
+      dispatch({ type: 'CLEAR_CART' });
+    } catch (error) {
+      console.error('Error creating order:', error);
+      alert('Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -169,10 +222,11 @@ const CartPage = () => {
 
                 <button
                   onClick={handleCheckout}
-                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 rounded-2xl font-bold text-lg hover:from-red-700 hover:to-red-800 transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+                  disabled={isProcessing}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 rounded-2xl font-bold text-lg hover:from-red-700 hover:to-red-800 transition-all transform hover:scale-105 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ShoppingBag size={24} />
-                  <span>Checkout Sekarang</span>
+                  <span>{isProcessing ? 'Memproses...' : 'Checkout Sekarang'}</span>
                 </button>
 
                 <div className="mt-4 text-center text-gray-600 text-sm">
