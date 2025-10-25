@@ -1,65 +1,37 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Pizza, Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { Pizza, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { useUserAuth } from '../context/UserAuthContext';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { dispatch } = useApp();
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { login } = useUserAuth();
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setMessage(null);
 
-    // Simulate login API call
-    setTimeout(() => {
-      const user = {
-        id: '1',
-        email,
-        username: email.split('@')[0],
-        points: 1250,
-        achievements: [],
-        createdAt: new Date(),
-      };
-      
-      dispatch({ type: 'LOGIN', payload: user });
-      navigate('/');
-      setIsLoading(false);
-    }, 1000);
-  };
+    const result = await login(email, password);
 
-  const handleQuickLogin = (userType: string) => {
-    setIsLoading(true);
-    const users = {
-      gamer: { email: 'gamer@pizzart.com', username: 'PizzaGamer', points: 2500 },
-      foodie: { email: 'foodie@pizzart.com', username: 'FoodieChef', points: 1800 },
-      creator: { email: 'creator@pizzart.com', username: 'PizzaCreator', points: 3200 },
-    };
+    if (result.success) {
+      setMessage({ type: 'success', text: 'Login berhasil!' });
+      setTimeout(() => navigate('/'), 500);
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Login gagal' });
+    }
 
-    const selectedUser = users[userType as keyof typeof users];
-    
-    setTimeout(() => {
-      const user = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...selectedUser,
-        achievements: [],
-        createdAt: new Date(),
-      };
-      
-      dispatch({ type: 'LOGIN', payload: user });
-      navigate('/');
-      setIsLoading(false);
-    }, 800);
+    setIsLoading(false);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-yellow-100 to-red-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="bg-gradient-to-r from-red-600 to-red-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
             <Pizza className="text-white" size={32} />
@@ -70,7 +42,25 @@ const LoginPage = () => {
           <p className="text-gray-600 mt-2">Selamat datang kembali, Pizza Chef! 👨‍🍳</p>
         </div>
 
-        {/* Login Form */}
+        {message && (
+          <div className={`rounded-lg p-4 mb-6 flex items-start gap-3 ${
+            message.type === 'success'
+              ? 'bg-green-50 border border-green-200'
+              : 'bg-red-50 border border-red-200'
+          }`}>
+            {message.type === 'success' ? (
+              <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            )}
+            <p className={`text-sm ${
+              message.type === 'success' ? 'text-green-800' : 'text-red-800'
+            }`}>
+              {message.text}
+            </p>
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
@@ -118,49 +108,6 @@ const LoginPage = () => {
           </button>
         </form>
 
-        {/* Divider */}
-        <div className="my-6 text-center">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">atau coba login cepat</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Login Options */}
-        <div className="space-y-3">
-          <button
-            onClick={() => handleQuickLogin('gamer')}
-            disabled={isLoading}
-            className="w-full bg-yellow-100 text-red-700 py-3 rounded-xl font-medium hover:bg-yellow-200 transition-all flex items-center justify-center space-x-2"
-          >
-            <span>🎮</span>
-            <span>Masuk sebagai Gamer</span>
-          </button>
-          
-          <button
-            onClick={() => handleQuickLogin('foodie')}
-            disabled={isLoading}
-            className="w-full bg-red-100 text-red-700 py-3 rounded-xl font-medium hover:bg-red-200 transition-all flex items-center justify-center space-x-2"
-          >
-            <span>🍕</span>
-            <span>Masuk sebagai Food Lover</span>
-          </button>
-          
-          <button
-            onClick={() => handleQuickLogin('creator')}
-            disabled={isLoading}
-            className="w-full bg-yellow-200 text-red-800 py-3 rounded-xl font-medium hover:bg-yellow-300 transition-all flex items-center justify-center space-x-2"
-          >
-            <span>🎨</span>
-            <span>Masuk sebagai Content Creator</span>
-          </button>
-        </div>
-
-        {/* Register Link */}
         <div className="text-center mt-6">
           <p className="text-gray-600">
             Belum punya akun?{' '}
@@ -168,6 +115,16 @@ const LoginPage = () => {
               Daftar sekarang
             </Link>
           </p>
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-gray-200 text-center">
+          <p className="text-sm text-gray-500 mb-2">Akses khusus admin</p>
+          <Link
+            to="/admin/login"
+            className="text-slate-600 text-sm hover:text-slate-800 font-medium"
+          >
+            Login sebagai Admin →
+          </Link>
         </div>
       </div>
     </div>
